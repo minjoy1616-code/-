@@ -17,7 +17,7 @@
             text-align: center;
         }
         .bg-custom-gradient {
-            background-image: linear-gradient(to bottom right, #f8b4d8, #a78bfa); /* More vibrant pastel gradient */
+            background-image: linear-gradient(to bottom right, #f8b4d8, #a78bfa);
         }
         .btn-green-pulse {
             animation: pulse-green 1s infinite;
@@ -38,27 +38,62 @@
         @keyframes pulse-purple {
             0%, 100% {
                 transform: scale(1);
-                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+                box-shadow: 0 4px 6px -1-px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
             }
             50% {
                 transform: scale(1.02);
                 box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
             }
         }
+        /* Fireworks styling */
+        .pyro > .before, .pyro > .after {
+            content: '';
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            box-shadow: 0 0 10px 1px #ff4800, 0 0 10px #ff9600, 0 0 20px #ffc800, 0 0 30px #ffff00;
+            opacity: 0;
+            animation: spark 0.8s forwards;
+        }
+        .pyro > .after {
+            box-shadow: 0 0 10px 1px #8c42f5, 0 0 10px #672ac4, 0 0 20px #4e19b5, 0 0 30px #3a158b;
+            animation: spark-rev 0.8s forwards;
+        }
+        @keyframes spark {
+            0% {
+                transform: translate(0, 0) scale(1);
+                opacity: 1;
+            }
+            100% {
+                transform: translate(50px, -50px) scale(0);
+                opacity: 0;
+            }
+        }
+        @keyframes spark-rev {
+            0% {
+                transform: translate(0, 0) scale(1);
+                opacity: 1;
+            }
+            100% {
+                transform: translate(-50px, 50px) scale(0);
+                opacity: 0;
+            }
+        }
     </style>
 </head>
-<body class="bg-gradient-to-br from-pink-100 to-purple-200 flex items-center justify-center min-h-screen">
+<body class="bg-gradient-to-br from-pink-100 to-purple-200 flex items-center justify-center min-h-screen relative">
     <div id="quiz-container" class="bg-white p-8 rounded-3xl shadow-2xl w-full max-w-md mx-4 transform transition-all duration-500 hover:scale-105">
         <h1 class="text-4xl font-extrabold mb-6 text-gray-800">
             초성 퀴즈 <span class="text-purple-500">게임</span>
         </h1>
         <div id="start-screen" class="flex flex-col items-center">
-            <p class="text-gray-600 mb-4 text-lg">총 10문제, 제한 시간 2분!</p>
+            <p class="text-gray-600 mb-4 text-lg">총 10문제, 제한 시간 1분!</p>
             <button id="start-btn" class="w-full bg-purple-400 text-white font-bold py-4 px-8 rounded-xl shadow-lg hover:bg-purple-500 transition-colors transform hover:scale-105 active:scale-95 btn-purple-pulse">게임 시작</button>
         </div>
         <div id="game-area" class="hidden flex-col items-center">
             <div id="timer" class="text-2xl font-bold font-mono text-red-500 mb-6 rounded-full bg-red-100 px-6 py-3 shadow-inner">
-                남은 시간: <span id="time-display">120</span>초
+                남은 시간: <span id="time-display">60</span>초
             </div>
             <div id="quiz-card" class="bg-custom-gradient text-white p-8 rounded-2xl shadow-xl mb-6 w-full transform transition-all duration-500">
                 <p id="question-number" class="text-xl font-semibold mb-2 opacity-80"></p>
@@ -71,10 +106,13 @@
             <button id="pass-btn" class="w-full bg-gray-400 text-white font-bold py-4 px-8 rounded-xl mt-3 shadow-lg hover:bg-gray-500 transition-colors transform hover:scale-105 active:scale-95 hidden">패스</button>
         </div>
         <div id="end-screen" class="hidden flex-col items-center mt-4">
-            <h2 id="final-score" class="text-2xl font-bold mb-4 text-gray-800"></h2>
+            <h2 id="final-score" class="text-2xl font-bold mb-2 text-gray-800"></h2>
+            <p id="end-message" class="text-lg text-gray-600 mb-4"></p>
             <button id="restart-btn" class="w-full bg-purple-400 text-white font-bold py-4 px-8 rounded-xl shadow-lg hover:bg-purple-500 transition-colors transform hover:scale-105 active:scale-95">다시 시작</button>
         </div>
     </div>
+    
+    <div id="fireworks-container" class="absolute inset-0 z-50 pointer-events-none hidden"></div>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
@@ -94,11 +132,13 @@
             const timerEl = document.getElementById('timer');
             const timeDisplayEl = document.getElementById('time-display');
             const finalScoreEl = document.getElementById('final-score');
+            const endMessageEl = document.getElementById('end-message');
+            const fireworksContainer = document.getElementById('fireworks-container');
 
             let currentQuestionIndex = 0;
             let score = 0;
             let timer;
-            let timeRemaining = 120;
+            let timeRemaining = 60;
 
             const questions = [
                 { initials: 'ㅈㅁㅊ', answer: '점메추', question: '점심 메뉴 추천' },
@@ -108,7 +148,7 @@
                 { initials: 'ㅇㅁㅇㄱ', answer: '안물안궁', question: '안 물어봤고 안 궁금해' },
                 { initials: 'ㅈㄲ', answer: '젊꼰', question: '젊은 사람인데도 불구하고 나이나 지위 등을 내세워 남을 가르치려 드는 사람을 비꼬는 말' },
                 { initials: 'ㄱㅅ', answer: '갓생', question: '갓(God)과 인생을 합친 말로, 완벽하고 부지런한 삶을 의미' },
-                { initials: 'ㅎㅁㅎ', answer: 'HMH', question: '‘하면한다’의 줄임말 영어표현, 상황에 따라 행동한다고 간단히 표현할 때' },
+                { initials: 'ㅎㅁㅎ', answer: 'HMH', question: '‘하면 해’의 영어표현. 상황에 따라 행동한다고 간단히 표현할 때. 정답은 영어로 써주세요! },
                 { initials: 'ㅅㅅㅍㄷ', answer: '섹시푸드', question: '강렬하고 중독성 있는 음식 표현' },
                 { initials: 'ㄱㅇㅇ', answer: '귀여워', question: '인터넷·SNS에서 ‘귀여워’를 초성으로 줄여 표현한 밈 단어.' }
             ];
@@ -117,7 +157,7 @@
             const startGame = () => {
                 currentQuestionIndex = 0;
                 score = 0;
-                timeRemaining = 120;
+                timeRemaining = 60;
                 startScreen.classList.add('hidden');
                 gameArea.classList.remove('hidden');
                 endScreen.classList.add('hidden');
@@ -185,6 +225,33 @@
                     passBtn.classList.remove('hidden');
                 }
             };
+            
+            // 폭죽 효과 생성
+            const createFireworks = () => {
+                fireworksContainer.classList.remove('hidden');
+                
+                for (let i = 0; i < 20; i++) {
+                    const sparkBefore = document.createElement('div');
+                    sparkBefore.className = 'pyro before';
+                    sparkBefore.style.left = `${Math.random() * 100}%`;
+                    sparkBefore.style.top = `${Math.random() * 100}%`;
+                    sparkBefore.style.animationDelay = `${Math.random() * 0.5}s`;
+                    fireworksContainer.appendChild(sparkBefore);
+
+                    const sparkAfter = document.createElement('div');
+                    sparkAfter.className = 'pyro after';
+                    sparkAfter.style.left = `${Math.random() * 100}%`;
+                    sparkAfter.style.top = `${Math.random() * 100}%`;
+                    sparkAfter.style.animationDelay = `${Math.random() * 0.5}s`;
+                    fireworksContainer.appendChild(sparkAfter);
+                }
+
+                setTimeout(() => {
+                    fireworksContainer.classList.add('hidden');
+                    fireworksContainer.innerHTML = '';
+                }, 2000);
+            };
+
 
             // 게임 종료
             const endGame = () => {
@@ -192,6 +259,13 @@
                 gameArea.classList.add('hidden');
                 endScreen.classList.remove('hidden');
                 finalScoreEl.textContent = `최종 점수: ${score} / ${questions.length}`;
+
+                if (score === questions.length) {
+                    endMessageEl.textContent = '대단해요! 밈 전문가로 인정합니다! 🎉';
+                    createFireworks();
+                } else {
+                    endMessageEl.textContent = '아쉽지만, 다음번에는 꼭 만점을 노려보세요!';
+                }
             };
 
             // 이벤트 리스너 설정
@@ -208,6 +282,7 @@
                 endScreen.classList.add('hidden');
                 startScreen.classList.remove('hidden');
                 finalScoreEl.textContent = '';
+                endMessageEl.textContent = '';
             });
 
             userAnswerInput.addEventListener('keydown', (e) => {
